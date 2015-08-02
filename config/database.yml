@@ -1,0 +1,10 @@
+default: &default
+  adapter: postgresql
+
+development:
+  <<: *default
+  database: patronus
+
+test:
+  <<: *default
+  database: patronus_test
