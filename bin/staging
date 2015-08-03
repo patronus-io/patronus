@@ -1,0 +1,2 @@
+#!/bin/sh
+HEROKU_APP=patronus-staging HKAPP=patronus-staging exec "${HEROKU_COMMAND:-heroku}" "$@"
