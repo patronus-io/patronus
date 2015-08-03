@@ -11,11 +11,14 @@ gem "sass-rails", "~> 5.0"
 gem "uglifier", ">= 1.3.0"
 gem "warden-github-rails", "~> 1.1.0", github: "indirect/warden-github-rails"
 
-group :development, :test do
-  gem "dotenv-rails"
+group :development do
+  gem "dotenv-rails", "~> 2.0"
   gem "pry-byebug", "~> 3.2"
-  gem "rspec-rails", "~> 3.3"
   gem "web-console", "~> 2.0"
+end
+
+group :development, :test do
+  gem "rspec-rails", "~> 3.3"
 end
 
 group :production do
