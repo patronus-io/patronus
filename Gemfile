@@ -18,3 +18,6 @@ group :development, :test do
   gem "web-console", "~> 2.0"
 end
 
+group :production do
+  gem "rails_12factor"
+end
