@@ -35,10 +35,10 @@ class GithubWebHookController < ApplicationController
     parent_patronus_status = user_client.statuses(repo, parent).find { |s| s.content = STATUS_CONTEXT }
     case combined_status.state
     when "success", "failure"
-      unless parent_patronus_status.try(:state) == "failure"
+      unless parent_patronus_status.state == "failure"
         user_client.create_status(repo, parent, combined_status.state, context: STATUS_CONTEXT)
       end
-      if combined_status.state == "success" && user_client.combined_status(repo, parent).state == "success" && comment == ':+1:'
+      if combined_status.state == "success" && user_client.combined_status(repo, parent).state == "success" && comment != 'test'
         user_client.update_branch(repo, pull_request.base.ref, payload.commit.sha, false)
       end
       user_client.delete_branch(repo, "patronus/#{parent}")
@@ -58,7 +58,8 @@ class GithubWebHookController < ApplicationController
 
     comment = comment[10..-1]
     case comment
-    when ":+1:", "test"
+    when ":+1:", "test", "retry"
+      user_client.create_status(repo, head, "pending", context: STATUS_CONTEXT)
       user_client.create_branch(repo, "heads/#{test_branch}", pull_request.base.sha)
       message = <<-MSG.strip_heredoc
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
