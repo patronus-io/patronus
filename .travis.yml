@@ -1,4 +1,7 @@
 language: ruby
+branches:
+  only:
+    - master
 cache: bundler
 addons:
   postgresql: "9.3"
