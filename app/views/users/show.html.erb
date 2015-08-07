@@ -1,6 +1,6 @@
 <h2>
   <%= image_tag @user.rels[:avatar].href, width: 50, height: 50 %>
-  <%= @user.login %>
+  <%= link_to @user.login, @user.rels[:html].href %>
   <%- if @user.name.present? %>
   (<%= @user.name %>)
   <%- end -%>
