@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  post "github/webhook" => "github_web_hook#create"
+  post "/github/webhook" => "github_web_hook#create"
 
   github_authenticate do
     get '/profile' => 'users#show', as: :profile

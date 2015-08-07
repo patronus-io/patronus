@@ -75,9 +75,10 @@ class GithubWebHookController < ApplicationController
 
   def verify_signature(payload_body)
     secret = ENV['GITHUB_WEBHOOK_SECRET'.freeze]
+    expected_signature = request.headers['HTTP_X_HUB_SIGNATURE'.freeze]
     return unless secret
     signature = 'sha1=' << OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha1'), secret, payload_body)
-    status = 401 && render(text: "Signatures didn't match!") unless Rack::Utils.secure_compare(signature, request.header['HTTP_X_HUB_SIGNATURE'])
+    status = 401 && render(text: "Signatures didn't match!") unless Rack::Utils.secure_compare(signature, expected_signature)
   end
 
   attr_reader :user, :project, :user_client, :payload, :repo
