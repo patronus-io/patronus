@@ -49,7 +49,7 @@ class GithubWebHookController < ApplicationController
 
   def handle_issue_comment
     return unless commenter = User.find_by(username: payload.comment.user.login)
-    return unless project.users.include?(commenter)
+    return unless user_client.collaborator?(repo, commenter.username)
     return unless comment = /\Apatronus: /
     issue_number = payload.issue.number
     return unless pull_request = user_client.pull_request(repo, issue_number)
