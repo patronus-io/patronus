@@ -30,7 +30,7 @@ class GithubWebHookController < ApplicationController
   end
 
   def handle_status
-    regex = /\AAuto merge of PR #(\d+) patronus from (#{GIT_SHA_PATTERN})\n\w+ => (.*)\Z/m
+    regex = /\AAuto merge of PR #(\d+) by patronus from (#{GIT_SHA_PATTERN})\n\w+ => (.*)\Z/m
     return unless payload.commit.message =~ regex
     pull_request = $1
     parent = $2
@@ -43,7 +43,7 @@ class GithubWebHookController < ApplicationController
       unless parent_patronus_status.state == "failure"
         user_client.create_status(repo_name, parent, combined_status.state, context: STATUS_CONTEXT)
       end
-      if combined_status.state == "success" && user_client.combined_status(repo_name, parent).state == "success" && comment != 'test'
+      if combined_status.state == "success" && user_client.combined_status(repo_name, parent).state == "success" && %w(:+1: retry).include?(comment)
         user_client.update_branch(repo_name, pull_request.base.ref, payload.commit.sha, false)
       end
       user_client.delete_branch(repo_name, "patronus/#{parent}")
@@ -71,7 +71,7 @@ class GithubWebHookController < ApplicationController
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
         #{commenter} => #{comment}
       MSG
-      user_client.merge(repo_name, pull_request.base.ref, head, commit_message: message)
+      user_client.merge(repo_name, head, pull_request.base.ref, commit_message: message)
     when ":-1:"
       user_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
     end
