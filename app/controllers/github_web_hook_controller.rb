@@ -30,13 +30,14 @@ class GithubWebHookController < ApplicationController
   end
 
   def handle_status
-    regex = /\AAuto merge of PR #(\d+) patronus from (#{GIT_SHA_PATTERN})[^$]$^\w+ => (.*)\Z/m
+    regex = /\AAuto merge of PR #(\d+) patronus from (#{GIT_SHA_PATTERN})\n\w+ => (.*)\Z/m
     return unless payload.commit.message =~ regex
-    pull_request = user_client.pull_request(repo, $1)
+    pull_request = $1
     parent = $2
     comment = $3
+    pull_request = user_client.pull_request(repo, pull_request)
     combined_status = user_client.combined_status(repo_name, payload.commit.sha)
-    parent_patronus_status = user_client.statuses(repo_name, parent).find { |s| s.content = STATUS_CONTEXT }
+    parent_patronus_status = user_client.statuses(repo_name, parent).find { |s| s.context = STATUS_CONTEXT }
     case combined_status.state
     when "success", "failure"
       unless parent_patronus_status.state == "failure"
