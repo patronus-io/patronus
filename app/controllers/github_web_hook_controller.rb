@@ -30,7 +30,7 @@ class GithubWebHookController < ApplicationController
   end
 
   def handle_status
-    regex = /\AAuto merge of PR #(\d+) patronus from (#{GIT_SHA_PATTERN})[^$]$^\w+ (.*)\Z/m
+    regex = /\AAuto merge of PR #(\d+) patronus from (#{GIT_SHA_PATTERN})[^$]$^\w+ => (.*)\Z/m
     return unless payload.commit.message =~ regex
     pull_request = user_client.pull_request(repo, $1)
     parent = $2
