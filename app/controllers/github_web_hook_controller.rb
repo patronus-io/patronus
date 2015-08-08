@@ -48,6 +48,9 @@ class GithubWebHookController < ApplicationController
       end
       if combined_status.state == "success" && user_client.combined_status(repo_name, parent).state == "success" && %w(:+1: retry).include?(comment)
         user_client.update_branch(repo_name, pull_request.base.ref, payload.commit.sha, false)
+        if pull_request.head.repo.full_name == repo_name
+          user_client.delete_branch(repo_name, pull_request.head.ref)
+        end
       end
       user_client.delete_branch(repo_name, "patronus/#{parent}")
     else
@@ -66,16 +69,22 @@ class GithubWebHookController < ApplicationController
     head = pull_request.head.sha
     test_branch = "patronus/#{head}"
 
+    Rails.logger.info { "-> PR #{issue_number} - #{commenter}: #{comment.inspect}, HEAD #{head[0, 7]}" }
+
     case comment
     when ":+1:", "test", "retry"
+      Rails.logger.info { "  -> Creating pending status on PR HEAD" }
       user_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
+      Rails.logger.info { "  -> Creating test ref #{test_branch.inspect} based on #{pull_request.base.sha[0, 7]}" }
       user_client.create_ref(repo_name, "heads/#{test_branch}", pull_request.base.sha)
       message = <<-MSG.strip_heredoc
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
         #{commenter} => #{comment}
       MSG
+      Rails.logger.info { "  -> Merging PR HEAD into test branch" }
       user_client.merge(repo_name, test_branch, head, commit_message: message)
     when ":-1:"
+      Rails.logger.info { "  -> Creating failure status on PR HEAD" }
       user_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
     end
   end
