@@ -65,7 +65,7 @@ class GithubWebHookController < ApplicationController
     case comment
     when ":+1:", "test", "retry"
       user_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
-      user_client.create_branch(repo_name, "heads/#{test_branch}", pull_request.base.sha)
+      user_client.create_ref(repo_name, "heads/#{test_branch}", pull_request.base.sha)
       message = <<-MSG.strip_heredoc
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
         #{commenter} => #{comment}
