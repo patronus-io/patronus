@@ -85,7 +85,7 @@ class GithubWebHookController < ApplicationController
   def repo=(repo)
     @repo_name = repo
     @repo = Repo.find_by!(name: repo)
-    @user = @project.user
+    @user = @repo.user
     @user_client = Octokit::Client.new(:access_token => @user.github_token)
   end
 
