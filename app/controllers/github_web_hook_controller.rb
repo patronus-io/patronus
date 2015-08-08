@@ -50,13 +50,13 @@ class GithubWebHookController < ApplicationController
   def handle_issue_comment
     commenter = payload.comment.user.login
     return unless user_client.collaborator?(repo_name, commenter)
-    return unless comment = /\Apatronus: /
+    comment = payload.comment.body
+    return unless comment.gsub!(/\Apatronus: /, "")
     issue_number = payload.issue.number
     return unless pull_request = user_client.pull_request(repo_name, issue_number)
     head = pull_request.head.sha
     test_branch = "patronus/#{head}"
 
-    comment = comment[10..-1]
     case comment
     when ":+1:", "test", "retry"
       user_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
