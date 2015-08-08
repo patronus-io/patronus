@@ -38,7 +38,7 @@ class GithubWebHookController < ApplicationController
     parent = $2
     comment = $3
     Rails.logger.info { "-> PR ##{pull_request}, Parent #{parent[0, 7]}, #{comment.inspect}" }
-    pull_request = user_client.pull_request(repo, pull_request)
+    pull_request = user_client.pull_request(repo_name, pull_request)
     combined_status = user_client.combined_status(repo_name, payload.commit.sha)
     parent_patronus_status = user_client.statuses(repo_name, parent).find { |s| s.context = STATUS_CONTEXT }
     Rails.logger.info { "  -> combined: #{combined_status.state}, patronus: #{parent_patronus_status.state}" }
