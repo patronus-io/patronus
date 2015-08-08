@@ -1,7 +1,7 @@
 class SessionsController < ApplicationController
   def create
     github_authenticate!
-    User.find_or_create_by!(username: github_user.login).github_token = github_user.token
+    User.find_or_create_by!(username: github_user.login).update!(github_token: github_user.token)
     redirect_to profile_path
   end
 
