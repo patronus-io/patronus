@@ -71,7 +71,7 @@ class GithubWebHookController < ApplicationController
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
         #{commenter} => #{comment}
       MSG
-      user_client.merge(repo_name, test_branch, pull_request.base.ref, commit_message: message)
+      user_client.merge(repo_name, test_branch, head, commit_message: message)
     when ":-1:"
       user_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
     end
