@@ -14,6 +14,8 @@ class GithubWebHookController < ApplicationController
     @payload = app_client.parse_payload(body)
     self.repo = payload.repository.full_name
 
+    Rails.logger.info { "GitHub: #{repo_name} - #{event}" }
+
     method_for_event = :"handle_#{event}"
     if respond_to?(method_for_event)
       send(method_for_event)
@@ -26,7 +28,7 @@ class GithubWebHookController < ApplicationController
   end
 
   def handle_ping
-
+    Rails.logger.info { "-> Ping!" }
   end
 
   def handle_status
@@ -35,6 +37,7 @@ class GithubWebHookController < ApplicationController
     pull_request = $1
     parent = $2
     comment = $3
+    Rails.logger.info { "-> PR ##{pull_request}, Parent #{parent[0, 7]}, #{comment}" }
     pull_request = user_client.pull_request(repo, pull_request)
     combined_status = user_client.combined_status(repo_name, payload.commit.sha)
     parent_patronus_status = user_client.statuses(repo_name, parent).find { |s| s.context = STATUS_CONTEXT }
@@ -81,7 +84,7 @@ class GithubWebHookController < ApplicationController
 
   def verify_signature(payload_body)
     secret = ENV['GITHUB_WEBHOOK_SECRET'.freeze]
-    expected_signature = request.headers['HTTP_X_HUB_SIGNATURE'.freeze]
+    expected_signature = request.headers['X-HUB-SIGNATURE'.freeze]
     return unless secret
     signature = 'sha1=' << OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha1'), secret, payload_body)
     status = 401 && render(text: "Signatures didn't match!") unless Rack::Utils.secure_compare(signature, expected_signature)
