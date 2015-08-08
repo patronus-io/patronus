@@ -7,18 +7,22 @@ class GithubWebHookController < ApplicationController
   protect_from_forgery with: :null_session
 
   def create
-    event = request.headers['X_GITHUB_EVENT'.freeze]
+    event = request.headers['X-GitHub-Event'.freeze]
     body = request.body.read
     verify_signature(body)
 
     @payload = app_client.parse_payload(body)
     self.repo = payload.repository.full_name
-    method_for_event = :"handle_#{event}"
-    status = 500 && render(text: "Unrecognized event `#{event}`") && return unless respond_to?(method_for_event)
-    send(method_for_event)
 
-    status = 200
-    render text: ""
+    method_for_event = :"handle_#{event}"
+    if respond_to?(method_for_event)
+      send(method_for_event)
+      status = 200
+      render text: "Success!"
+    else
+      status = 500
+      render text: "Unrecognized event `#{event}`"
+    end
   end
 
   def handle_ping
@@ -52,6 +56,7 @@ class GithubWebHookController < ApplicationController
     return unless user_client.collaborator?(repo_name, commenter)
     comment = payload.comment.body
     return unless comment.gsub!(/\Apatronus: /, "")
+    comment.strip!
     issue_number = payload.issue.number
     return unless pull_request = user_client.pull_request(repo_name, issue_number)
     head = pull_request.head.sha
