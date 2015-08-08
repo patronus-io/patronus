@@ -77,7 +77,8 @@ class GithubWebHookController < ApplicationController
       Rails.logger.info { "  -> Creating pending status on PR HEAD" }
       user_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
       Rails.logger.info { "  -> Creating test ref #{test_branch.inspect} based on #{pull_request.base.sha[0, 7]}" }
-      user_client.create_ref(repo_name, "heads/#{test_branch}", pull_request.base.sha)
+      target_branch = user_client.branch(repo_name, pull_request.base.ref)
+      user_client.create_ref(repo_name, "heads/#{test_branch}", target_branch.commit.sha)
       message = <<-MSG.strip_heredoc
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
         #{commenter} => #{comment}
