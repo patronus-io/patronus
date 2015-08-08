@@ -50,10 +50,10 @@ class GithubWebHookController < ApplicationController
       if combined_status.state == "success" && user_client.combined_status(repo_name, parent).state == "success" && %w(:+1: retry).include?(comment)
         user_client.update_branch(repo_name, pull_request.base.ref, payload.commit.sha, false)
         if pull_request.head.repo.full_name == repo_name
-          user_client.delete_branch(repo_name, pull_request.head.ref)
+          user_client.delete_branch(repo_name, pull_request.head.ref) rescue nil
         end
       end
-      user_client.delete_branch(repo_name, "patronus/#{parent}")
+      user_client.delete_branch(repo_name, "patronus/#{parent}") rescue nil
     else
       # wait until all done
     end
