@@ -4,6 +4,7 @@ ruby File.read(".ruby-version").chomp
 
 gem "rails", "4.2.3"
 
+gem "faraday-http-cache"
 gem "jquery-rails", "~> 4.0"
 gem "lograge"
 gem "octokit"
@@ -25,5 +26,6 @@ group :development, :test do
 end
 
 group :production do
+  gem "dalli"
   gem "rails_12factor"
 end
