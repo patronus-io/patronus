@@ -7,4 +7,8 @@ class User < ActiveRecord::Base
     user.update!(github_token: github_user.token)
   end
 
+  def github
+    @github ||= Octokit::Client.new(:access_token => github_token)
+  end
+
 end
