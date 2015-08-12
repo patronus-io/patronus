@@ -1,6 +1,6 @@
 class UsersController < ApplicationController
   def show
-    @user = github_user.api.user(params[:id])
-    @repos = github_user.api.repos(params[:id])
+    @user = current_user
+    @repos = current_user.repos
   end
 end

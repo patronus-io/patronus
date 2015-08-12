@@ -7,6 +7,18 @@ class User < ActiveRecord::Base
     user.tap{|u| u.update!(github_token: github_user.token) }
   end
 
+  def profile_url
+    github_info.rels[:html].href
+  end
+
+  def avatar_url
+    github_info.rels[:avatar].href
+  end
+
+  def github_info
+    @github_info ||= github.user(username)
+  end
+
   def github
     @github ||= Octokit::Client.new(:access_token => github_token)
   end
