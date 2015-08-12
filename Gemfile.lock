@@ -88,6 +88,8 @@ GEM
     pry-byebug (3.2.0)
       byebug (~> 5.0)
       pry (~> 0.10)
+    pry-rails (0.3.4)
+      pry (>= 0.9.10)
     puma (2.11.3)
       rack (>= 1.1, < 2.0)
     rack (1.6.4)
@@ -190,6 +192,7 @@ DEPENDENCIES
   octokit
   pg (~> 0.18.2)
   pry-byebug (~> 3.2)
+  pry-rails (~> 0.3.4)
   puma (~> 2.11.0)
   rails (= 4.2.3)
   rails_12factor

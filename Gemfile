@@ -16,6 +16,7 @@ gem "warden-github-rails", "~> 1.2"
 group :development do
   gem "dotenv-rails", "~> 2.0"
   gem "pry-byebug", "~> 3.2"
+  gem "pry-rails", "~> 0.3.4"
   gem "web-console", "~> 2.0"
 end
 
