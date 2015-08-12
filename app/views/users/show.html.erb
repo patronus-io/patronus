@@ -17,3 +17,18 @@
   </dl>
   <%- end -%>
 <%- end -%>
+
+<h4>Add Repository</h4>
+<%= form_for Reviewership.new do |f| %>
+  <%= f.fields_for Repo.new do |r| %>
+    <div>
+      <%= r.label "owner" %><br>
+      <%= r.text_field "owner" %>
+    </div>
+    <div>
+      <%= r.label "name" %><br>
+      <%= r.text_field "name" %>
+    </div>
+  <% end %>
+  <%= f.submit "Add" %>
+<% end %>
