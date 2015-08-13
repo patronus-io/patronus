@@ -6,7 +6,7 @@ RSpec.describe ReviewershipsController, type: :controller do
   describe "POST #create" do
     it "returns http success" do
       allow(controller).to receive(:github_user).and_return(github_user)
-      post :create, reviewership: {repo: {owner: "alice", name: "website"}}
+      post :create, reviewership: {repo: {name: "alice/website"}}
       expect(response).to redirect_to(profile_path)
     end
   end
