@@ -12,7 +12,7 @@ class GithubWebHookController < ApplicationController
     verify_signature(body)
 
     @payload = app_client.parse_payload(body)
-    self.repo = payload.repository.full_name
+    find_reviewership!(payload.repository.full_name, payload.sender.login)
 
     Rails.logger.info { "GitHub: #{repo_name} - #{event}" }
 
@@ -101,11 +101,12 @@ class GithubWebHookController < ApplicationController
     status = 401 && render(text: "Signatures didn't match!") unless Rack::Utils.secure_compare(signature, expected_signature)
   end
 
-  attr_reader :user, :repo_name, :user_client, :payload, :repo
-  def repo=(repo)
+  attr_reader :user, :repo_name, :user_client, :payload, :repo, :reviewership
+  def find_reviewership!(repo, sender)
+    @reviewership = Reviewership.joins(:user).where('users.username' => sender).joins(:repo).where('repos.name' => repo).first!
     @repo_name = repo
-    @repo = Repo.find_by!(name: repo)
-    @user = @repo.user
+    @repo = @reviewership.repo
+    @user = @reviewership.user
     @user_client = Octokit::Client.new(:access_token => @user.github_token)
   end
 
