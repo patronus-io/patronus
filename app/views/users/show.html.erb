@@ -7,14 +7,13 @@
 <%- if @repos.empty? -%>
 <p>No repos enabled yet!</p>
 <%- else -%>
-<%- @repos.group_by { |r| r.owner.login }.each do |org, repos| -%>
-  <h4><%= link_to org, repos.first.owner.html_url %></h4>
-  <dl>
+<%- @repos.group_by { |r| r.name.split('/').first }.each do |org, repos| -%>
+  <h4><%= link_to org, "https://github.com/#{org}" %></h4>
+  <ul>
     <%- repos.each do |repo| -%>
-      <dt><%= link_to repo.full_name, repo.rels[:html].href %></dt>
-      <dd><%= repo.description %></dd>
+      <li><%= link_to repo, "https://github.com/#{repo}" %></li>
     <%- end -%>
-  </dl>
+  </ul>
   <%- end -%>
 <%- end -%>
 
