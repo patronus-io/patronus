@@ -8,7 +8,6 @@ private
 
   def reviewership_params
     params.require(:reviewership).permit(repo: [:owner, :name]).tap do |p|
-      p[:repo][:name] = [p[:repo].delete(:owner), p[:repo].delete(:name)].join("/")
       p[:repo_attributes] = p.delete(:repo)
       p[:user] = current_user
     end
