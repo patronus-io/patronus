@@ -68,12 +68,12 @@ class GithubWebHookController < ApplicationController
     issue_number = payload.issue.number
     return unless pull_request = user_client.pull_request(repo_name, issue_number)
     head = pull_request.head.sha
-    test_branch = "patronus/#{head}"
 
     Rails.logger.info { "-> PR #{issue_number} - #{commenter}: #{comment.inspect}, HEAD #{head[0, 7]}" }
 
     case comment
     when ":+1:", "test", "retry"
+      test_branch = "patronus/#{head}"
       Rails.logger.info { "  -> Creating pending status on PR HEAD" }
       user_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
       Rails.logger.info { "  -> Creating test ref #{test_branch.inspect} based on #{pull_request.base.sha[0, 7]}" }
@@ -88,6 +88,9 @@ class GithubWebHookController < ApplicationController
     when ":-1:"
       Rails.logger.info { "  -> Creating failure status on PR HEAD" }
       user_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
+    when "fork"
+      Rails.logger.info { "  -> Creating a local branch from PR HEAD" }
+      user_client.create_ref(repo_name, "pr-#{issue_number}", head)
     end
   end
 
