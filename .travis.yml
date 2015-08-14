@@ -1,7 +1,7 @@
 language: ruby
 branches:
   only:
-    - master
+    - '/^patronus\/.{7,40}/'
 cache: bundler
 addons:
   postgresql: "9.3"
