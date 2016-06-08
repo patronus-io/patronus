@@ -18,3 +18,5 @@
 
 # Ignore Heroku app binstubs
 /bin/*
+
+/Gemfile.lock
