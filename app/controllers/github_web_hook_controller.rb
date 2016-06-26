@@ -97,24 +97,30 @@ class GithubWebHookController < ApplicationController
     pull_request = payload.pull_request
     return unless payload.pull_request and pull_request.merged
 
-    # TODO: check if the PR was merged into master (or some other branch obtained from config or db)
-    dev_base = 'dev' # TODO: get this from config or db
+    port_branch_base = pull_request.base.ref
 
-    head_sha = pull_request.head.sha
+    port_branches = repo.port_branches.where(base: port_branch_base)
 
-    feature_branch = if repo_name.eql? pull_request.head.repo.full_name
-      pull_request.head.label
-    else
-      branch_name = "patronus-pr-#{dev_base}-#{pull_request.number}"
-      user_client.create_ref(repo_name, "heads/#{branch_name}", head_sha)
-      branch_name
-    end
+    port_branches.each do |port_branch|
+      port_branch_dev = port_branch.dev
 
-    user_client.create_pull_request(repo_name, dev_base, feature_branch, "[port] #{pull_request.title}", <<-MSG.strip_heredoc)
-      Introduces changes from pull request ##{pull_request.number} into development branch `#{dev_base}`.
-      Original pull request's description:
+      head_sha = pull_request.head.sha
+
+      feature_branch = if repo_name.eql? pull_request.head.repo.full_name
+        pull_request.head.label
+      else
+        branch_name = "patronus-pr-#{port_branch_dev}-#{pull_request.number}"
+        user_client.create_ref(repo_name, "heads/#{branch_name}", head_sha)
+        branch_name
+      end
+
+      user_client.create_pull_request(repo_name, port_branch_dev, feature_branch, "[port] #{pull_request.title}", <<-MSG.strip_heredoc)
+      Introduces changes from pull request ##{pull_request.number} into development branch `#{port_branch_dev}`.
+
+      *Original pull request's description:*
       #{pull_request.body}
-    MSG
+      MSG
+    end
   end
 
   private

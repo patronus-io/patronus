@@ -11,10 +11,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150813181200) do
+ActiveRecord::Schema.define(version: 20160626195928) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "port_branches", force: :cascade do |t|
+    t.integer  "repo_id"
+    t.string   "base"
+    t.string   "dev"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  add_index "port_branches", ["repo_id"], name: "index_port_branches_on_repo_id", using: :btree
 
   create_table "repos", force: :cascade do |t|
     t.string   "name",       null: false
@@ -41,6 +51,7 @@ ActiveRecord::Schema.define(version: 20150813181200) do
 
   add_index "users", ["username"], name: "index_users_on_username", using: :btree
 
+  add_foreign_key "port_branches", "repos"
   add_foreign_key "reviewerships", "repos"
   add_foreign_key "reviewerships", "users"
 end
