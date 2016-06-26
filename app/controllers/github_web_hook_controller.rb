@@ -110,8 +110,10 @@ class GithubWebHookController < ApplicationController
       branch_name
     end
 
-    user_client.create_pull_request(repo_name, dev_base, feature_branch, "[patronus] #{pull_request.title}", <<-MSG.strip_heredoc)
+    user_client.create_pull_request(repo_name, dev_base, feature_branch, "[port] #{pull_request.title}", <<-MSG.strip_heredoc)
       Introduces changes from pull request ##{pull_request.number} into development branch `#{dev_base}`.
+      Original pull request's description:
+      #{pull_request.body}
     MSG
   end
 
