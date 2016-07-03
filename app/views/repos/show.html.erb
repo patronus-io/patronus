@@ -1,0 +1,32 @@
+<style>
+  table {border:1px solid black;border-collapse:collapse;border-spacing:0}
+  th {border:1px solid black;padding: .3rem;font-weight: bold}
+  td {border:1px solid black;padding: .3rem}
+</style>
+<h3>Pull requests for <%= @repo.name %></h3>
+<%- if @pull_requests.empty? -%>
+    <p>No open pull requests for this repository!</p>
+<%- else -%>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Status</th>
+        <th>Head ref</th>
+        <th>Title</th>
+        <th>Approved by</th>
+        <th>Mergeable</th>
+        <th>Assignee</th>
+      </tr>
+      <%- @pull_requests.each_with_index do |pr| -%>
+          <tr>
+            <td><%= link_to(pr.number, pr.html_url) %></td>
+            <td><%= @statuses[pr.id] %></td>
+            <td><%= pr.head.repo.owner.login %>:<%= pr.head.ref %></td>
+            <td><%= pr.title %></td>
+            <td>(still wip)</td>
+            <td><%= pr.mergeable %></td>
+            <td><%= pr.assignees.map{|a| a.login}.to_sentence if pr.assignees %></td>
+          </tr>
+      <%- end -%>
+    </table>
+<%- end -%>
