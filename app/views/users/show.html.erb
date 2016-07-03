@@ -11,7 +11,7 @@
   <h4><%= link_to org, "https://github.com/#{org}" %></h4>
   <ul>
     <%- repos.each do |repo| -%>
-      <li><%= link_to repo, "https://github.com/#{repo}" %></li>
+      <li><%= link_to repo, repo_path(org, repo.name.split('/').second) %></li>
     <%- end -%>
   </ul>
   <%- end -%>

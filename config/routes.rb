@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   github_authenticate do
     get '/profile' => 'users#show', as: :profile
     resource :reviewerships, only: [:create]
+    get '/r/:account_name/:repo_name' => 'repos#show', as: :repo
   end
 
   get '/login'  => 'sessions#create', as: :login
