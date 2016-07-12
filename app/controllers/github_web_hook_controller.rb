@@ -19,11 +19,9 @@ class GithubWebHookController < ApplicationController
     method_for_event = :"handle_#{event}"
     if respond_to?(method_for_event)
       send(method_for_event)
-      status = 200
-      render text: "Success!"
+      render text: "Success!", status: 200
     else
-      status = 500
-      render text: "Unrecognized event `#{event}`"
+      render text: "Unrecognized event `#{event}`", status: 501
     end
   end
 
@@ -91,7 +89,38 @@ class GithubWebHookController < ApplicationController
       user_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
     when "fork"
       Rails.logger.info { "  -> Creating a local branch from PR HEAD" }
-      user_client.create_ref(repo_name, "pr-#{issue_number}", head)
+      user_client.create_ref(repo_name, "heads/patronus-pr-#{issue_number}", head)
+    end
+  end
+
+  def handle_pull_request
+    return unless payload.action.eql? 'closed'
+    pull_request = payload.pull_request
+    return unless payload.pull_request and pull_request.merged
+
+    port_branch_base = pull_request.base.ref
+
+    port_branches = repo.port_branches.where(base: port_branch_base)
+
+    port_branches.each do |port_branch|
+      port_branch_dev = port_branch.dev
+
+      head_sha = pull_request.head.sha
+
+      feature_branch = if repo_name.eql? pull_request.head.repo.full_name
+        pull_request.head.label
+      else
+        branch_name = "patronus-pr-#{port_branch_dev}-#{pull_request.number}"
+        user_client.create_ref(repo_name, "heads/#{branch_name}", head_sha)
+        branch_name
+      end
+
+      user_client.create_pull_request(repo_name, port_branch_dev, feature_branch, "[port] #{pull_request.title}", <<-MSG.strip_heredoc)
+      Introduces changes from pull request ##{pull_request.number} into development branch `#{port_branch_dev}`.
+
+      *Original pull request's description:*
+      #{pull_request.body}
+      MSG
     end
   end
 

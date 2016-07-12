@@ -11,7 +11,24 @@
   <h4><%= link_to org, "https://github.com/#{org}" %></h4>
   <ul>
     <%- repos.each do |repo| -%>
-      <li><%= link_to repo, "https://github.com/#{repo}" %></li>
+      <li>
+        <%= link_to repo, "https://github.com/#{repo}" %>
+        <ul>
+          <%- repo.port_branches.each do |port_branch| -%>
+            <li>Port PRs made to <strong><%= port_branch.base %></strong> to development branch <strong><%= port_branch.dev %></strong></li>
+          <%- end -%>
+          <li>
+            <%= form_for [repo, PortBranch.new] do |f| %>
+                New port:
+                <%= f.label "base", "base branch name" %>
+                <%= f.text_field "base" %>
+                <%= f.label "dev", "dev branch name" %>
+                <%= f.text_field "dev" %>
+                <%= f.submit "Add" %>
+            <% end %>
+          </li>
+        </ul>
+      </li>
     <%- end -%>
   </ul>
   <%- end -%>
