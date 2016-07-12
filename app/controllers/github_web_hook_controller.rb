@@ -60,6 +60,7 @@ class GithubWebHookController < ApplicationController
   end
 
   def handle_issue_comment
+    return unless payload.action.eql? 'created'
     commenter = payload.comment.user.login
     return unless user_client.collaborator?(repo_name, commenter)
     comment = payload.comment.body
