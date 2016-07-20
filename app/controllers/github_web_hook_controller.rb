@@ -136,9 +136,9 @@ class GithubWebHookController < ApplicationController
 
   attr_reader :user, :repo_name, :user_client, :payload, :repo, :reviewership
   def find_reviewership!(repo, sender)
-    if sender.eql? ENV['GITHUB_BOT_USERNAME']
+    if sender.eql? ENV['GITHUB_BOT_USERNAME'.freeze]
       # fake user and reviewership for the bot
-      @user = User.new(username: ENV['GITHUB_BOT_USERNAME'], github_token: ENV['GITHUB_BOT_TOKEN'])
+      @user = User.new(username: ENV['GITHUB_BOT_USERNAME'.freeze], github_token: ENV['GITHUB_BOT_TOKEN'.freeze])
       @repo = Repo.find_by_name repo
       @reviewership = Reviewership.new(user: @user, repo: @repo)
       @repo_name = repo
@@ -153,14 +153,14 @@ class GithubWebHookController < ApplicationController
   end
 
   def app_client
-    @app_client ||= Octokit::Client.new(client_id: ENV["GITHUB_CLIENT_ID".freeze], client_secret: ENV["GITHUB_CLIENT_SECRET".freeze])
+    @app_client ||= Octokit::Client.new(client_id: ENV['GITHUB_CLIENT_ID'.freeze], client_secret: ENV['GITHUB_CLIENT_SECRET'.freeze])
   end
 
   def bot_client
     # uses bot account if it has permissions, otherwise uses user account
     @bot_client ||= begin
-      if @user_client.collaborator?(@repo.name, ENV['GITHUB_BOT_USERNAME'])
-        Octokit::Client.new(:access_token => ENV['GITHUB_BOT_TOKEN'])
+      if @user_client.collaborator?(@repo.name, ENV['GITHUB_BOT_USERNAME'.freeze])
+        Octokit::Client.new(:access_token => ENV['GITHUB_BOT_TOKEN'.freeze])
       else
         Rails.logger.warn { 'Bot does not have permissions, using user account to interact' }
         @user_client
