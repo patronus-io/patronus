@@ -11,4 +11,11 @@ class Reviewership < ActiveRecord::Base
       user.github.create_hook(repo.name, "web", config, { events: ["*"] })
     end
   end
+
+  def ensure_bot_permissions!
+    unless user.github.collaborator?(repo.name, ENV['GITHUB_BOT_USERNAME'])
+      # adds bot to repo with push access, even on organization-owned repos
+      user.github.add_collaborator(repo.name, ENV['GITHUB_BOT_USERNAME'])
+    end
+  end
 end

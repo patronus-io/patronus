@@ -2,6 +2,7 @@ class ReviewershipsController < ApplicationController
   def create
     Reviewership.create!(reviewership_params) do |reviewership|
       reviewership.ensure_webhook_installed!
+      reviewership.ensure_bot_permissions!
     end
     redirect_to(profile_path)
   end
