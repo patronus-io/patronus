@@ -25,6 +25,13 @@ group :development, :test do
   gem "rspec-rails", "~> 3.3"
 end
 
+group :test do
+  gem 'capybara', '~> 2.7.1'
+  gem 'guard-rspec', '~> 4.7.2'
+  gem 'vcr', '~> 3.0.3'
+  gem 'webmock', '~> 2.1.0'
+end
+
 group :production do
   gem "memcachier"
   gem "dalli"
