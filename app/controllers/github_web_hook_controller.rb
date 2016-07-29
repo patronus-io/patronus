@@ -36,22 +36,22 @@ class GithubWebHookController < ApplicationController
     parent = $2
     comment = $3
     Rails.logger.info { "-> PR ##{pull_request}, Parent #{parent[0, 7]}, #{comment.inspect}" }
-    pull_request = user_client.pull_request(repo_name, pull_request)
-    combined_status = user_client.combined_status(repo_name, payload.commit.sha)
-    parent_patronus_status = user_client.statuses(repo_name, parent).find { |s| s.context = STATUS_CONTEXT }
+    pull_request = bot_client.pull_request(repo_name, pull_request)
+    combined_status = bot_client.combined_status(repo_name, payload.commit.sha)
+    parent_patronus_status = bot_client.statuses(repo_name, parent).find { |s| s.context = STATUS_CONTEXT }
     Rails.logger.info { "  -> combined: #{combined_status.state}, patronus: #{parent_patronus_status.state}" }
     case combined_status.state
     when "success", "failure"
       unless parent_patronus_status.state == "failure"
-        user_client.create_status(repo_name, parent, combined_status.state, context: STATUS_CONTEXT)
+        bot_client.create_status(repo_name, parent, combined_status.state, context: STATUS_CONTEXT)
       end
-      if combined_status.state == "success" && user_client.combined_status(repo_name, parent).state == "success" && %w(:+1: retry).include?(comment)
-        user_client.update_branch(repo_name, pull_request.base.ref, payload.commit.sha, false)
+      if combined_status.state == "success" && bot_client.combined_status(repo_name, parent).state == "success" && %w(:+1: retry).include?(comment)
+        bot_client.update_branch(repo_name, pull_request.base.ref, payload.commit.sha, false)
         if pull_request.head.repo.full_name == repo_name
-          user_client.delete_branch(repo_name, pull_request.head.ref) rescue nil
+          bot_client.delete_branch(repo_name, pull_request.head.ref) rescue nil
         end
       end
-      user_client.delete_branch(repo_name, "patronus/#{parent}") rescue nil
+      bot_client.delete_branch(repo_name, "patronus/#{parent}") rescue nil
     else
       # wait until all done
     end
@@ -60,12 +60,12 @@ class GithubWebHookController < ApplicationController
   def handle_issue_comment
     return unless payload.action.eql? 'created'
     commenter = payload.comment.user.login
-    return unless user_client.collaborator?(repo_name, commenter)
+    return unless bot_client.collaborator?(repo_name, commenter)
     comment = payload.comment.body
     return unless comment.gsub!(/\Apatronus: /, "")
     comment.strip!
     issue_number = payload.issue.number
-    return unless pull_request = user_client.pull_request(repo_name, issue_number)
+    return unless pull_request = bot_client.pull_request(repo_name, issue_number)
     head = pull_request.head.sha
 
     Rails.logger.info { "-> PR #{issue_number} - #{commenter}: #{comment.inspect}, HEAD #{head[0, 7]}" }
@@ -74,22 +74,22 @@ class GithubWebHookController < ApplicationController
     when ":+1:", "test", "retry"
       test_branch = "patronus/#{head}"
       Rails.logger.info { "  -> Creating pending status on PR HEAD" }
-      user_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
+      bot_client.create_status(repo_name, head, "pending", context: STATUS_CONTEXT)
       Rails.logger.info { "  -> Creating test ref #{test_branch.inspect} based on #{pull_request.base.sha[0, 7]}" }
-      target_branch = user_client.branch(repo_name, pull_request.base.ref)
-      user_client.create_ref(repo_name, "heads/#{test_branch}", target_branch.commit.sha)
+      target_branch = bot_client.branch(repo_name, pull_request.base.ref)
+      bot_client.create_ref(repo_name, "heads/#{test_branch}", target_branch.commit.sha)
       message = <<-MSG.strip_heredoc
         Auto merge of PR ##{issue_number} by patronus from #{head} onto #{pull_request.base.label}
         #{commenter} => #{comment}
       MSG
       Rails.logger.info { "  -> Merging PR HEAD into test branch" }
-      user_client.merge(repo_name, test_branch, head, commit_message: message)
+      bot_client.merge(repo_name, test_branch, head, commit_message: message)
     when ":-1:"
       Rails.logger.info { "  -> Creating failure status on PR HEAD" }
-      user_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
+      bot_client.create_status(repo_name, head, "failure", context: STATUS_CONTEXT)
     when "fork"
       Rails.logger.info { "  -> Creating a local branch from PR HEAD" }
-      user_client.create_ref(repo_name, "heads/patronus-pr-#{issue_number}", head)
+      bot_client.create_ref(repo_name, "heads/patronus-pr-#{issue_number}", head)
     end
   end
 
@@ -111,11 +111,11 @@ class GithubWebHookController < ApplicationController
         pull_request.head.label
       else
         branch_name = "patronus-pr-#{port_branch_dev}-#{pull_request.number}"
-        user_client.create_ref(repo_name, "heads/#{branch_name}", head_sha)
+        bot_client.create_ref(repo_name, "heads/#{branch_name}", head_sha)
         branch_name
       end
 
-      user_client.create_pull_request(repo_name, port_branch_dev, feature_branch, "[port] #{pull_request.title}", <<-MSG.strip_heredoc)
+      bot_client.create_pull_request(repo_name, port_branch_dev, feature_branch, "[port] #{pull_request.title}", <<-MSG.strip_heredoc)
       Introduces changes from pull request ##{pull_request.number} into development branch `#{port_branch_dev}`.
 
       *Original pull request's description:*
@@ -136,14 +136,35 @@ class GithubWebHookController < ApplicationController
 
   attr_reader :user, :repo_name, :user_client, :payload, :repo, :reviewership
   def find_reviewership!(repo, sender)
-    @reviewership = Reviewership.joins(:user).where('users.username' => sender).joins(:repo).where('repos.name' => repo).first!
-    @repo_name = repo
-    @repo = @reviewership.repo
-    @user = @reviewership.user
-    @user_client = Octokit::Client.new(:access_token => @user.github_token)
+    if sender.eql? ENV['GITHUB_BOT_USERNAME'.freeze]
+      # fake user and reviewership for the bot
+      @user = User.new(username: ENV['GITHUB_BOT_USERNAME'.freeze], github_token: ENV['GITHUB_BOT_TOKEN'.freeze])
+      @repo = Repo.find_by_name repo
+      @reviewership = Reviewership.new(user: @user, repo: @repo)
+      @repo_name = repo
+      @user_client = @user.github
+    else
+      @reviewership = Reviewership.joins(:user).where('users.username' => sender).joins(:repo).where('repos.name' => repo).first!
+      @repo = @reviewership.repo
+      @user = @reviewership.user
+      @repo_name = repo
+      @user_client = @user.github
+    end
   end
 
   def app_client
-    @app_client ||= Octokit::Client.new(client_id: ENV["GITHUB_CLIENT_ID".freeze], client_secret: ENV["GITHUB_CLIENT_SECRET".freeze])
+    @app_client ||= Octokit::Client.new(client_id: ENV['GITHUB_CLIENT_ID'.freeze], client_secret: ENV['GITHUB_CLIENT_SECRET'.freeze])
+  end
+
+  def bot_client
+    # uses bot account if it has permissions, otherwise uses user account
+    @bot_client ||= begin
+      if @user_client.collaborator?(@repo.name, ENV['GITHUB_BOT_USERNAME'.freeze])
+        Octokit::Client.new(:access_token => ENV['GITHUB_BOT_TOKEN'.freeze])
+      else
+        Rails.logger.warn { 'Bot does not have permissions, using user account to interact' }
+        @user_client
+      end
+    end
   end
 end
