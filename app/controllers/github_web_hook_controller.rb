@@ -9,15 +9,17 @@ class GithubWebHookController < ApplicationController
   def create
     event = request.headers['X-GitHub-Event'.freeze]
     body = request.body.read
-    verify_signature(body)
-
-    @payload = app_client.parse_payload(body)
-    find_reviewership!(payload.repository.full_name, payload.sender.login)
-
-    Rails.logger.info { "GitHub: #{repo_name} - #{event}" }
+    verify_signature(body); return if performed?
 
     method_for_event = :"handle_#{event}"
     if respond_to?(method_for_event)
+      if method_for_event.eql? :handle_ping
+        Rails.logger.info { "GitHub: #{event}" }
+      else
+        @payload = app_client.parse_payload(body)
+        find_reviewership!(payload.repository.full_name, payload.sender.login)
+        Rails.logger.info { "GitHub: #{repo_name} - #{event}" }
+      end
       send(method_for_event)
       render text: "Success!", status: 200
     else
@@ -131,7 +133,7 @@ class GithubWebHookController < ApplicationController
     expected_signature = request.headers['X-HUB-SIGNATURE'.freeze] || ''
     return unless secret
     signature = 'sha1=' << OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha1'), secret, payload_body)
-    status = 401 && render(text: "Signatures didn't match!") unless Rack::Utils.secure_compare(signature, expected_signature)
+    render(text: "Signatures didn't match!", status: 401) unless Rack::Utils.secure_compare(signature, expected_signature)
   end
 
   attr_reader :user, :repo_name, :user_client, :payload, :repo, :reviewership
