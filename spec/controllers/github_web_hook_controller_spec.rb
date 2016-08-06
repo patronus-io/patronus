@@ -8,14 +8,10 @@ RSpec.describe GithubWebHookController, type: :controller do
     allow(controller).to receive(:github_user).and_return(github_user)
   end
 
-  def build_hook(event, params = {})
-    @hook = GithubWebHookRequest.new(event, params, @request)
-  end
-
   context 'POST #create' do
     describe 'with an unrecognised event' do
       it 'returns http 501' do
-        build_hook 'invalid-event'
+        GithubWebHookRequest.new('invalid-event', request)
         post :create
         expect(response).to have_http_status(501)
       end
@@ -23,21 +19,29 @@ RSpec.describe GithubWebHookController, type: :controller do
 
     describe 'with ping event' do
       it 'returns http 200' do
-        build_hook 'ping'
+        GithubWebHookRequest::Ping.new(request: request)
         post :create
         expect(response).to have_http_status(200)
       end
 
       it 'returns http 401 on signature mismatch' do
-        build_hook 'ping'
+        GithubWebHookRequest::Ping.new(request: request)
         request.headers['X-Hub-Signature'] = 'invalid signature'
-        post :create, @hook.body
+        post :create
         expect(response).to have_http_status(401)
       end
     end
 
     describe 'with status event' do
+      pending 'is handled'
+    end
 
+    describe 'with issue_comment event' do
+      pending 'is handled'
+    end
+
+    describe 'with pull_request event' do
+      pending 'is handled'
     end
   end
 

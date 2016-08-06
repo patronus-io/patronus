@@ -1,99 +1,49 @@
 class GithubWebHookRequest
   require 'openssl'
 
+  autoload :Ping,   'github_web_hook_request/ping'
+  autoload :Status, 'github_web_hook_request/status'
+
   SECRET = ENV['GITHUB_WEBHOOK_SECRET'.freeze]
 
-  attr :body, :headers
+  attr :body, :event
 
-  def initialize(event, params = {}, request = nil)
-    method_for_event = :"event_#{event}"
-    @body = (respond_to?(method_for_event) ? send(method_for_event, params) : {}).to_json
-    @headers = {
+  def initialize(event, request = nil)
+    @event = event
+    @body = (@body || {}).to_json
+    add_to_request(request) if request
+  end
+
+  def add_to_request(request)
+    request.headers.merge!(headers) if request
+    request.headers['RAW_POST_DATA'] = @body if request
+  end
+
+  def headers
+    @headers ||= {
       # 'Request URL' => 'http://patronus.chalkos.ultrahook.com/github/webhook',
       # 'Request method' => 'POST',
       'content-type' => 'application/json',
       'Expect' => '',
       'User-Agent' => 'GitHub-Hookshot/5a08997',
       'X-GitHub-Delivery' => 'unused',
-      'X-GitHub-Event' => event,
+      'X-GitHub-Event' => @event,
       'X-Hub-Signature' => 'sha1=' << OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha1'), SECRET, @body)
     }
-    request.headers.merge!(@headers) if request
-    request.headers['RAW_POST_DATA'] = @body if request
   end
 
   private
 
-  # mandatory params:
-  #   :state
-  #   :commit, see commit params
-  #   :branches, array of branch params
-  def event_status(params = {})
-    params[:id] ||= 123456
-    params[:sha] ||= '5b84c7138bbd1d46fa0768ab5d8f72116f5241b9'
+  def repository(id:, name:, full_name:, username:, user_id:, user_is_organization: false, description: '')
+    user = user(username: username, id: user_id, type: user_is_organization ? 'Organization' : 'User')
     {
-      id: params[:id],
-      sha: params[:sha],
-      name: 'chalkos/patronus-testing',
-      target_url: nil,
-      context: 'merge/patronus',
-      description: nil,
-      state: params[:state],
-      commit: commit(params[:commit]),
-      branches: params[:branches].map { |branch_params| branch(params[:sha], branch_params) },
-      created_at: '2016-07-20T13:28:58Z',
-      updated_at: '2016-07-20T13:28:58Z',
-      repository: repository(params[:repository]),
-      sender: user(params[:sender]),
-    }
-  end
-
-  # minimal request
-  def event_ping(params = {})
-    {
-      zen: 'random-string',
-      hook_id: 1,
-      hook: {
-        id: 1,
-        url: 'https://api.github.com/repos/octocat/Hello-World/hooks/1',
-        test_url: 'https://api.github.com/repos/octocat/Hello-World/hooks/1/test',
-        ping_url: 'https://api.github.com/repos/octocat/Hello-World/hooks/1/pings',
-        name: 'web',
-        events: %w(status pull_request comment_issue),
-        active: true,
-        config: {
-          url: 'http://example.com/webhook',
-          content_type: 'json'
-        },
-        updated_at: '2011-09-06T20:39:23Z',
-        created_at: '2011-09-06T17:26:27Z'
-      }
-    }
-  end
-
-  # params
-  #   :name
-  #   :username
-  #   :user_id
-  #   :user_is_org
-  def repository(params = {})
-    name = params[:name] || 'patronus-testing'
-    full_name = "#{params[:username]}/#{name}"
-
-    user_params = {username: params[:username], id: params[:user_id]}
-    if params[:user_is_org]
-      user = organization(user_params)
-    else
-      user = user(user_params)
-    end
-    {
-      id: params[:id],
+      id: id,
       name: name,
       full_name: full_name,
       owner: user,
       private: false,
       html_url: "https://github.com/#{full_name}",
-      description: params[:description] || '',
+      description: description,
       fork: false,
       url: "https://api.github.com/repos/#{full_name}",
       forks_url: "https://api.github.com/repos/#{full_name}/forks",
@@ -155,133 +105,101 @@ class GithubWebHookRequest
       open_issues: 4,
       watchers: 0,
       default_branch: 'master'
-    }.merge(params[:user_is_org] ? {organization: user} : {}) # unconfirmed
+    }.merge(user_is_organization ? {organization: user} : {}) # unconfirmed
   end
 
-  # optional params:
-  #   :name
-  #   :sha
-  def branch(default_sha, params = {})
-    sha = params[:sha] || default_sha
+  def branch(sha:, name:, repo_full_name:)
     {
-      name: params[:name] || 'a-branch',
+      name: name,
       commit: {
         sha: sha,
-        url: "https://api.github.com/repos/chalkos/patronus-testing/commits/#{sha}"
+        url: "https://api.github.com/repos/#{repo_full_name}/commits/#{sha}"
       }
     }
   end
 
-  # mandatory params
-  #   :sha
-  #   :tree_sha
-  #   :parent_sha (for one parent) or :parents_sha (for multiple parents)
-  # optional params
-  #   :message
-  #   :author, see commit_author_or_committer params
-  #   :use_author_as_committer
-  #   :committer, see commit_author_or_committer params
-  #   :comment_count
-  def commit(params = {})
-    author_params = params[:author] || {}
-    committer_params = (params[:use_author_as_committer] ? :author : :committer) || {}
-    params[:parents_sha] = [params[:parent_sha]] if params[:parent_sha]
-    {
-      sha: params[:sha],
-      commit: {
-        author: commit_author_or_committer(author_params),
-        committer: commit_author_or_committer(committer_params),
-        message: params[:message] || '',
-        tree: {
-          sha: params[:tree_sha],
-          url: "https://api.github.com/repos/chalkos/patronus-testing/git/trees/#{params[:tree_sha]}"
-        },
-        url: "https://api.github.com/repos/chalkos/patronus-testing/git/commits/#{params[:sha]}",
-        comment_count: params[:comment_count] || 0
-      },
-      url: "https://api.github.com/repos/chalkos/patronus-testing/commits/#{params[:sha]}",
-      html_url: "https://github.com/chalkos/patronus-testing/commit/#{params[:sha]}",
-      comments_url: "https://api.github.com/repos/chalkos/patronus-testing/commits/#{params[:sha]}/comments",
-      author: user_chalkos,
-      committer: user_web_flow,
-      parents: params[:parents_sha].map { |parent_sha| commit_parent(parent_sha) },
-    }
-  end
-
-  def commit_parent(sha)
+  # author uses arguments from #user and #commit_author_or_committer
+  # committer uses arguments from #user and #commit_author_or_committer
+  # if use_author_as_committer is true, committer is ignored and the value from user is used
+  def commit(repo_full_name:, commit_parents: [], commit_parent_sha: '', sha:, tree_sha:, author:, committer:, author_is_committer: false, comment_count: 0, message: '')
+    committer = author_is_committer ? author : committer
+    commit_parents ||= [{sha: commit_parent_sha}]
     {
       sha: sha,
-      url: "https://api.github.com/repos/chalkos/patronus-testing/commits/#{sha}",
-      html_url: "https://github.com/chalkos/patronus-testing/commit/#{sha}"
+      commit: {
+        author: commit_author_or_committer(commit_author_or_committer_params(author)),
+        committer: commit_author_or_committer(commit_author_or_committer_params(committer)),
+        message: message,
+        tree: {
+          sha: tree_sha,
+          url: "https://api.github.com/repos/#{repo_full_name}/git/trees/#{tree_sha}"
+        },
+        url: "https://api.github.com/repos/#{repo_full_name}/git/commits/#{sha}",
+        comment_count: comment_count
+      },
+      url: "https://api.github.com/repos/#{repo_full_name}/commits/#{sha}",
+      html_url: "https://github.com/#{repo_full_name}/commit/#{sha}",
+      comments_url: "https://api.github.com/repos/#{repo_full_name}/commits/#{sha}/comments",
+      author: user(user_params(author)),
+      committer: user(user_params(committer)),
+      parents: commit_parents.map { |parent| commit_parent(default_full_name: repo_full_name, **parent) },
     }
   end
 
-  # optional params:
-  #   :name
-  #   :email
-  #   :date
-  def commit_author_or_committer(params = {})
+  # only the sha is needed, since default_full_name is set in #commit
+  def commit_parent(sha:, full_name:, default_full_name:)
+    full_name ||= default_full_name
     {
-      name: params[:name] || 'GitHub',
-      email: params[:email] || 'noreply@github.com',
-      date: params[:date] || '2016-07-20T09:20:07Z',
+      sha: sha,
+      url: "https://api.github.com/repos/#{full_name}/commits/#{sha}",
+      html_url: "https://github.com/#{full_name}/commit/#{sha}"
     }
   end
 
-  # mandatory params:
-  #   :id
-  #   :username
-  # optional params:
-  #   :gravatar_id, defaults to ''
-  #   :admin, defaults to false
-  #   :type, defaults to 'User'
-  def user(params = {})
-    params[:gravatar_id] ||= ''
-    params[:admin] ||= false
+  def commit_author_or_committer(name: 'GitHub', email: 'noreply@github.com', date: '2016-07-20T09:20:07Z')
+    {name: name, email: email, date: date}
+  end
+
+  # valid user examples:
+  #   username web_flow with id 19864447
+  #   username chalkos with id 98429
+  #   username bundlerbot with id 13614622
+  def user(id:, username:, type: 'User', gravatar_id: '')
     {
-      login: params[:username],
-      id: params[:id],
-      gravatar_id: params[:gravatar_id],
-      type: params[:type] || 'User',
-      site_admin: params[:admin],
-      avatar_url: "https://avatars.githubusercontent.com/u/#{params[:id]}?v=3",
-      url: "https://api.github.com/users/#{params[:username]}",
-      html_url: "https://github.com/#{params[:username]}",
-      followers_url: "https://api.github.com/users/#{params[:username]}/followers",
-      following_url: "https://api.github.com/users/#{params[:username]}/following{/other_user}",
-      gists_url: "https://api.github.com/users/#{params[:username]}/gists{/gist_id}",
-      starred_url: "https://api.github.com/users/#{params[:username]}/starred{/owner}{/repo}",
-      subscriptions_url: "https://api.github.com/users/#{params[:username]}/subscriptions",
-      organizations_url: "https://api.github.com/users/#{params[:username]}/orgs",
-      repos_url: "https://api.github.com/users/#{params[:username]}/repos",
-      events_url: "https://api.github.com/users/#{params[:username]}/events{/privacy}",
-      received_events_url: "https://api.github.com/users/#{params[:username]}/received_events",
+      login: username,
+      id: id,
+      gravatar_id: gravatar_id,
+      type: type,
+      site_admin: false,
+      avatar_url: "https://avatars.githubusercontent.com/u/#{id}?v=3",
+      url: "https://api.github.com/users/#{username}",
+      html_url: "https://github.com/#{username}",
+      followers_url: "https://api.github.com/users/#{username}/followers",
+      following_url: "https://api.github.com/users/#{username}/following{/other_user}",
+      gists_url: "https://api.github.com/users/#{username}/gists{/gist_id}",
+      starred_url: "https://api.github.com/users/#{username}/starred{/owner}{/repo}",
+      subscriptions_url: "https://api.github.com/users/#{username}/subscriptions",
+      organizations_url: "https://api.github.com/users/#{username}/orgs",
+      repos_url: "https://api.github.com/users/#{username}/repos",
+      events_url: "https://api.github.com/users/#{username}/events{/privacy}",
+      received_events_url: "https://api.github.com/users/#{username}/received_events",
     }
   end
 
   # see user
-  def organization(params = {})
-    user(params.merge({type: 'Organization'}))
+  def organization(id:, username:, gravatar_id: '')
+    user(id: id, username: username, type: 'Organization', gravatar_id: gravatar_id)
   end
 
-  def user_web_flow
-    user({
-      id: 19864447,
-      username: 'web-flow',
-    })
+  # returns the params hash containing only arguments allowed in #user
+  def user_params(params)
+    filter = method(:user).parameters.select { |ps| [:key, :keyreq].include? ps.first }.map(&:last)
+    params.slice(filter)
   end
 
-  def user_chalkos
-    user({
-      id: 98429,
-      username: 'chalkos'
-    })
-  end
-
-  def user_bundlerbot
-    user({
-      id: 13614622,
-      username: 'bundlerbot'
-    })
+  # returns the params hash containing only arguments allowed in #commit_author_or_committer
+  def commit_author_or_committer_params(params)
+    filter = method(:commit_author_or_committer).parameters.select { |ps| [:key, :keyreq].include? ps.first }.map(&:last)
+    params.slice(filter)
   end
 end
