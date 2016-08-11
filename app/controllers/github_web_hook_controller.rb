@@ -21,7 +21,7 @@ class GithubWebHookController < ApplicationController
         Rails.logger.info { "GitHub: #{repo_name} - #{event}" }
       end
       send(method_for_event)
-      render text: "Success!", status: 200
+      render text: "Success!", status: 200 unless performed?
     else
       render text: "Unrecognized event `#{event}`", status: 501
     end
@@ -33,7 +33,7 @@ class GithubWebHookController < ApplicationController
 
   def handle_status
     regex = /\AAuto merge of PR #(\d+) by patronus from (#{GIT_SHA_PATTERN}).*\n\w+ => (.*)\Z/
-    return unless payload.commit.commit.message =~ regex
+    return render(text: 'Commit message did not match regex.', status: 202) unless payload.commit.commit.message =~ regex
     pull_request = $1
     parent = $2
     comment = $3

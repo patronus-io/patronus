@@ -18,7 +18,7 @@ class GithubWebHookRequest
     #   all from #user, :id (:user_id) and :username are already present and can be omitted
     def initialize(request: nil,
       id: 123456, sha:, username:, user_id:, user_is_organization: false, repo_full_name:, context:, state:,
-      commit_params:, branches:, repository_params:, sender_params:
+      commit_params:, branches:, repository_params:, sender_params: {}
     )
       @body = {
         id: id,

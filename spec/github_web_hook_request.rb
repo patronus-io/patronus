@@ -121,7 +121,7 @@ class GithubWebHookRequest
   # author uses arguments from #user and #commit_author_or_committer
   # committer uses arguments from #user and #commit_author_or_committer
   # if use_author_as_committer is true, committer is ignored and the value from user is used
-  def commit(repo_full_name:, commit_parents: [], commit_parent_sha: '', sha:, tree_sha:, author:, committer:, author_is_committer: false, comment_count: 0, message: '')
+  def commit(repo_full_name:, commit_parents: [], commit_parent_sha: '', sha:, tree_sha:, author:, committer: {}, author_is_committer: false, comment_count: 0, message: '')
     committer = author_is_committer ? author : committer
     commit_parents ||= [{sha: commit_parent_sha}]
     {
@@ -194,12 +194,12 @@ class GithubWebHookRequest
   # returns the params hash containing only arguments allowed in #user
   def user_params(params)
     filter = method(:user).parameters.select { |ps| [:key, :keyreq].include? ps.first }.map(&:last)
-    params.slice(filter)
+    params.slice(*filter)
   end
 
   # returns the params hash containing only arguments allowed in #commit_author_or_committer
   def commit_author_or_committer_params(params)
     filter = method(:commit_author_or_committer).parameters.select { |ps| [:key, :keyreq].include? ps.first }.map(&:last)
-    params.slice(filter)
+    params.slice(*filter)
   end
 end
