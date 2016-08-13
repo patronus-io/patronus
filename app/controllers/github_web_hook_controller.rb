@@ -146,12 +146,16 @@ class GithubWebHookController < ApplicationController
       @repo_name = repo
       @user_client = @user.github
     else
-      @reviewership = Reviewership.joins(:user).where('users.username' => sender).joins(:repo).where('repos.name' => repo).first!
+      @reviewership = find_user_reviewership(repo, sender)
       @repo = @reviewership.repo
       @user = @reviewership.user
       @repo_name = repo
       @user_client = @user.github
     end
+  end
+
+  def find_user_reviewership(repo, sender)
+    Reviewership.joins(:user).where('users.username' => sender).joins(:repo).where('repos.name' => repo).first!
   end
 
   def app_client

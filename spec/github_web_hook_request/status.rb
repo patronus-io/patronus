@@ -1,6 +1,11 @@
 class GithubWebHookRequest
   class Status < GithubWebHookRequest
 
+    # def initialize(request, body)
+    #   @body = JSON.parse body
+    #   super('status', request)
+    # end
+
     # simple parameters:
     #   sha: '5b84c7138bbd1d46fa0768ab5d8f72116f5241b9'
     #   username: 'bundlerbot'
